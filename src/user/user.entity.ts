@@ -32,7 +32,6 @@ export class User {
 
     @BeforeInsert()
     async hashPassword() {
-        console.log('hash')
         if (this.password) {
             const saltRounds = 10;
             this.password = await bcrypt.hash(this.password, saltRounds);

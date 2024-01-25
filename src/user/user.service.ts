@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Equal, FindManyOptions, Like, Repository } from 'typeorm';
+import { Equal, FindManyOptions, IsNull, Like, Repository } from 'typeorm';
 import { User } from './user.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { CreateUserDto, UpdateUserDto } from './dto/user.dto';
@@ -11,7 +11,7 @@ export class UserService {
         private readonly userRepository: Repository<User>,
     ) { }
 
-    async getAllUsers(filters?: { id?: number, name?: string; email?: string, dateOfBirth?: string, createdDate?: string }, sortBy?: string, sortDirection?: string): Promise<User[]> {
+    async getAllUsers(filters?: { id?: number, name?: string; email?: string, dateOfBirth?: string, createdDate?: string }, sortBy?: string, sortDirection?: string): Promise<any[]> {
         const options: FindManyOptions<User> = {
             order: { [sortBy]: sortDirection }
         };
@@ -22,13 +22,19 @@ export class UserService {
                 ...(filters.email && { email: Like(`%${filters.email}%`) }),
                 ...(filters.dateOfBirth && { dateOfBirth: Equal(new Date(filters.dateOfBirth)) }),
                 ...(filters.createdDate && { createdDate: Equal(new Date(filters.createdDate)) }),
+                deletedDate: IsNull()
             };
         }
-        return await this.userRepository.find(options);
+        const results: User[] = await this.userRepository.find(options);
+        const filteredResults = results.map(({ password, ...rest }) => rest);
+        return filteredResults;
     }
 
     async getUserById(id: number): Promise<User> {
-        return await this.userRepository.findOneBy({ id });
+        return await this.userRepository.findOne({
+            where: { id: id },
+            select: ['name', 'email', 'dateOfBirth'],
+        });
     }
 
     async createUser(user: CreateUserDto): Promise<User> {
@@ -37,7 +43,8 @@ export class UserService {
     }
 
     async updateUser(id: number, data: UpdateUserDto) {
-        await this.userRepository.update(id, data);
+        const foundEntity = await this.userRepository.findOneBy({id});
+        await this.userRepository.save(Object.assign(foundEntity, data));
         return await this.getUserById(id);
     }
 
