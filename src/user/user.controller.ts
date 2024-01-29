@@ -9,13 +9,15 @@ export class UserController {
     getAllUsers(
         @Query('sortBy') sortBy: string = 'updatedDate',
         @Query('sortDirection') sortDirection: string = 'DESC',
+        @Query('limit') limit: number = 10,
+        @Query('page') page: number = 1,
         @Query('id') id?: number,
         @Query('name') name?: string,
         @Query('email') email?: string,
         @Query('dateOfBirth') dateOfBirth?: string,
-        @Query('createdDate') createdDate?: string,
+        @Query('updatedDate') updatedDate?: string,
     ) {
-        return this.userService.getAllUsers({ id, name, email, dateOfBirth, createdDate },sortBy, sortDirection.toUpperCase());
+        return this.userService.getAllUsers({ id, name, email, dateOfBirth, updatedDate },sortBy, sortDirection.toUpperCase(), page, limit);
     }
 
     @Get(':id')

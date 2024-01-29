@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Equal, FindManyOptions, IsNull, Like, Repository } from 'typeorm';
+import { Between, Equal, FindManyOptions, IsNull, Like, Repository } from 'typeorm';
 import { User } from './user.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { CreateUserDto, UpdateUserDto } from './dto/user.dto';
@@ -11,23 +11,35 @@ export class UserService {
         private readonly userRepository: Repository<User>,
     ) { }
 
-    async getAllUsers(filters?: { id?: number, name?: string; email?: string, dateOfBirth?: string, createdDate?: string }, sortBy?: string, sortDirection?: string): Promise<any[]> {
+    async getAllUsers(filters?: { id?: number, name?: string; email?: string, dateOfBirth?: string, updatedDate?: string }, sortBy?: string, sortDirection?: string, page?: number, limit?: number): Promise<{ data: any[]; total: number }> {
         const options: FindManyOptions<User> = {
-            order: { [sortBy]: sortDirection }
+            order: { [sortBy]: sortDirection },
+            skip: (page - 1) * limit || 0,
+            take: limit || 0
         };
         if (filters) {
             options.where = {
                 ...(filters.id && { id: Equal(filters.id) }),
                 ...(filters.name && { name: Like(`%${filters.name}%`) }),
                 ...(filters.email && { email: Like(`%${filters.email}%`) }),
-                ...(filters.dateOfBirth && { dateOfBirth: Equal(new Date(filters.dateOfBirth)) }),
-                ...(filters.createdDate && { createdDate: Equal(new Date(filters.createdDate)) }),
+                ...(filters.dateOfBirth && { dateOfBirth: 
+                    Between(
+                        new Date(new Date(filters.dateOfBirth).setHours(0, 0, 0, 0)),
+                        new Date(new Date(filters.dateOfBirth).setHours(23, 59, 59, 999))
+                    )
+                }),
+                ...(filters.updatedDate && { updatedDate: 
+                    Between(
+                        new Date(new Date(filters.updatedDate).setHours(0, 0, 0, 0)),
+                        new Date(new Date(filters.updatedDate).setHours(23, 59, 59, 999))
+                    ) 
+                }),
                 deletedDate: IsNull()
             };
         }
-        const results: User[] = await this.userRepository.find(options);
-        const filteredResults = results.map(({ password, ...rest }) => rest);
-        return filteredResults;
+        const [results, total] = await this.userRepository.findAndCount(options);
+        const data = results.map(({ password, ...rest }) => rest);
+        return { data, total};
     }
 
     async getUserById(id: number): Promise<User> {
